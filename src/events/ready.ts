@@ -13,8 +13,11 @@ export default (client: Client, commands: any, token: string) => {
     const day = String(date.getDate()).padStart(2, '0');
 
     const formattedDate = `${year}-${month}-${day}`;
+    // show the time in the console, like 1pm or 1am
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
 
-    console.log('Checking airing schedule for', formattedDate);
+  
+    console.log('Checking airing schedule for', formattedDate, 'at', time);
 
     if (client.user) {
       client.user.setActivity('The Zoro Schedule', { type: ActivityType.Watching });
