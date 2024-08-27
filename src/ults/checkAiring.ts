@@ -5,13 +5,11 @@ import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 const Zoro = new ANIME.Zoro();
 const channel_id = Bun.env.CHANNEL_ID;
 
-// Utility function to convert military time to 12-hour format
-const convertTo12HourFormat = (time: string) => {
-  const [hourString, minute] = time.split(':');
-  let hour = parseInt(hourString);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  hour = hour % 12 || 12; // Convert hour to 12-hour format and handle midnight (0:00)
-  return `${hour}:${minute} ${ampm}`;
+const convertToUnixTimestamp = (timeString, dateString) => {
+  const [hourString, minute] = timeString.split(':');
+  const [year, month, day] = dateString.split('-');
+  const date = new Date(year, month - 1, day, parseInt(hourString), parseInt(minute));
+  return Math.floor(date.getTime() / 1000); 
 };
 
 export const checkAiring = async (client: Client) => {
@@ -19,39 +17,50 @@ export const checkAiring = async (client: Client) => {
     const subscriptions = await Subscription.find({});
     const date = new Date();
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
 
     const formattedDate = `${year}-${month}-${day}`;
 
     console.log('Checking airing schedule for', formattedDate);
-    const airingSchedule = await Zoro.fetchSchedule(formattedDate); // Fetching the airing schedule
+    const airingSchedule = await Zoro.fetchSchedule(formattedDate);
 
-    console.log('Checking airing schedule...');
+    if (!airingSchedule || !airingSchedule.results) {
+      console.error('No airing schedule results found.');
+      return;
+    }
 
     if (subscriptions.length > 0) {
-      const userNotifications: { [userId: string]: string[] } = {};
+      const userNotifications = {};
 
-      // Prepare notifications for each user
       for (const subscription of subscriptions) {
-        const anime = airingSchedule.results.find(anime => anime.title === subscription.animeName);
-        if (anime) {
-          const formattedTime = convertTo12HourFormat(anime.airingTime);
-          const message = `New episode of [${subscription.animeName}](${anime.url}) is airing at ${formattedTime}! 🎉`;
+        for (const sub of subscription.subscriptions) {
+          const anime = airingSchedule.results.find(anime => typeof anime.title === 'string' && anime.title.toLowerCase() === sub.animeName?.toLowerCase());
 
-          if (!userNotifications[subscription.userId]) {
-            userNotifications[subscription.userId] = [];
+          if (anime) {
+
+            const unixTimestamp = convertToUnixTimestamp(anime.airingTime, formattedDate);
+            const formattedTime = `<t:${unixTimestamp}:F>`; 
+            const message = `The anime [${sub.animeName}](${anime.url}) is on the schedule and airs at ${formattedTime}! 🎉`;
+
+            if (!userNotifications[subscription.userId]) {
+              userNotifications[subscription.userId] = [];
+            }
+            userNotifications[subscription.userId].push(message);
+
+            const episodeNumber = parseInt(anime.airingEpisode?.match(/\d+/)?.[0] || "0", 10);
+
+            await Subscription.updateOne(
+              { userId: subscription.userId, 'subscriptions.animeName': sub.animeName },
+              { $set: { 'subscriptions.$.lastEpisodeNotified': episodeNumber } }
+            );
+          } else {
+            console.log(`No match found for anime: ${sub.animeName} for user: ${subscription.userId}`);
           }
-          userNotifications[subscription.userId].push(message);
-
-          await Subscription.updateOne(
-            { userId: subscription.userId, animeName: subscription.animeName },
-            { lastNotified: new Date() }
-          );
         }
       }
 
-      // Send a consolidated message to each user
+      // Send notifications to users
       for (const userId in userNotifications) {
         try {
           const user = await client.users.fetch(userId);
@@ -63,7 +72,6 @@ export const checkAiring = async (client: Client) => {
         }
       }
 
-      // Prepare a summary embed for the channel
       const channel = (await client.channels.fetch(channel_id)) as TextChannel;
       const embed = new EmbedBuilder()
         .setTitle('Airing Schedule Summary')
@@ -71,13 +79,12 @@ export const checkAiring = async (client: Client) => {
         .setDescription('Here are the anime airing today:')
         .addFields(
           airingSchedule.results.map(anime => ({
-            name: anime.title?.toString() || 'Unknown Title',
-            value: `Episode ${anime.airingEpisode?.toString() || 'N/A'} at ${convertTo12HourFormat(anime.airingTime)}`,
+            name: String(anime.title) || 'Unknown Title',
+            value: `Episode ${anime.airingEpisode?.toString() || 'N/A'} at <t:${convertToUnixTimestamp(anime.airingTime, formattedDate)}:F>`,
             inline: false
           }))
         );
 
-      // Send the summary embed
       await channel.send({ embeds: [embed] });
 
     } else {

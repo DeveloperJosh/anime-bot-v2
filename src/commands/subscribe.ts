@@ -19,33 +19,56 @@ export async function execute(interaction: CommandInteraction) {
 
   await interaction.reply(`Subscribing to ${animeName}...`);
 
-  const doesExist = await Zoro.search(animeName);
+  try {
+    const doesExist = await Zoro.search(animeName);
 
-  if (!doesExist || !Array.isArray(doesExist.results) || doesExist.results.length === 0) {
-    return interaction.editReply('No results found.');
+    if (!doesExist || !Array.isArray(doesExist.results) || doesExist.results.length === 0) {
+      return interaction.editReply('No results found.');
+    }
+
+    // Find the closest match
+    const titles = doesExist.results.map(anime => anime.title);
+    const bestMatch = stringSimilarity.findBestMatch(animeName, titles.map(title => title.toString()));
+
+    const closestAnime = doesExist.results[bestMatch.bestMatchIndex];
+    console.log(`Closest match found: ${closestAnime.title}`);
+
+    // Check if the user is already subscribed to the anime
+    const existingSubscription = await Subscription.findOne({ userId });
+    console.log(`Existing subscription: ${existingSubscription}`);
+
+    if (existingSubscription) {
+      const isAlreadySubscribed = existingSubscription.subscriptions.some(sub => sub.animeName === closestAnime.title.toString());
+
+      if (isAlreadySubscribed) {
+        return interaction.editReply(`You are already subscribed to ${closestAnime.title.toString()}!`);
+      }
+
+      // Add the new anime to the subscriptions array
+      existingSubscription.subscriptions.push({
+        animeName: closestAnime.title.toString(),
+        lastEpisodeNotified: 0
+      });
+
+      await existingSubscription.save();
+      console.log(`Added ${closestAnime.title} to existing subscription.`);
+    } else {
+      // Create a new subscription entry for the user
+      const newSubscription = new Subscription({
+        userId,
+        subscriptions: [{
+          animeName: closestAnime.title.toString(),
+          lastEpisodeNotified: 0
+        }]
+      });
+
+      await newSubscription.save();
+      console.log(`Created new subscription with ${closestAnime.title}.`);
+    }
+
+    await interaction.editReply(`Subscribed to ${closestAnime.title.toString()}!`);
+  } catch (error) {
+    console.error('Error subscribing to anime:', error);
+    await interaction.editReply('An error occurred while trying to subscribe. Please try again later.');
   }
-
-  // find the closest match
-  const titles = doesExist.results.map(anime => anime.title);
-  const bestMatch = stringSimilarity.findBestMatch(animeName, titles.map(title => title.toString()));
-
-  const closestAnime = doesExist.results[bestMatch.bestMatchIndex];
-
-  // check if the user is already subscribed to the anime
-  const subscription = await Subscription.findOne({ userId, animeName: closestAnime.title.toString() });
-
-  if (subscription) {
-    return interaction.editReply(`You are already subscribed to ${closestAnime.title.toString()}!`);
-  }
-
-  // create a new subscription
-  const newSubscription = new Subscription({
-    userId,
-    animeName: closestAnime.title.toString(),
-  });
-
-  await newSubscription.save();
-
-  await interaction.editReply(`Subscribed to ${closestAnime.title.toString()}!`);
-
 }
