@@ -1,0 +1,23 @@
+{
+  "name": "my-discord-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@consumet/extensions": "^1.7.0",
+    "@discordjs/rest": "^2.3.0",
+    "@types/node": "^22.5.0",
+    "@types/string-similarity": "^4.0.2",
+    "axios": "^1.7.5",
+    "cron": "^3.1.7",
+    "discord-api-types": "^0.37.98",
+    "discord.js": "^14.15.3",
+    "mongoose": "^8.5.4",
+    "string-similarity": "^4.0.4"
+  }
+}
