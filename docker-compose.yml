@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   discord-bot:
-    image: jarredsumner/bun:latest
+    image: oven/bun:latest
     container_name: discord-bot
     working_dir: /usr/src/app
     volumes:
