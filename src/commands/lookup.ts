@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, CommandInteraction } from 'discord.js';
-import { ANIME } from '@consumet/extensions';
+import { ANIME, META } from '@consumet/extensions';
 import stringSimilarity from 'string-similarity';
 
 export const data = new SlashCommandBuilder()
@@ -38,7 +38,6 @@ export async function execute(interaction: CommandInteraction) {
     // Ensure the description is valid
     const description = animeDetails.description?.trim() || 'No description available.';
 
-    // Create the embed message
     const embed = new EmbedBuilder()
       .setTitle(animeDetails.title?.toString() || 'Unknown Title')
       .setColor("#ff33fc")

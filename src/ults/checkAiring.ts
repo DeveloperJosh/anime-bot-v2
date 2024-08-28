@@ -40,7 +40,7 @@ export const checkAiring = async (client: Client) => {
           if (anime) {
 
             const unixTimestamp = convertToUnixTimestamp(anime.airingTime, formattedDate);
-            const formattedTime = `<t:${unixTimestamp}:F>`; 
+            const formattedTime = `<t:${unixTimestamp}:t>`; 
             const message = `The anime [${sub.animeName}](${anime.url}) is on the schedule and airs at ${formattedTime}! 🎉`;
 
             if (!userNotifications[subscription.userId]) {
@@ -80,7 +80,7 @@ export const checkAiring = async (client: Client) => {
         .addFields(
           airingSchedule.results.map(anime => ({
             name: String(anime.title) || 'Unknown Title',
-            value: `Episode ${anime.airingEpisode?.toString() || 'N/A'} at <t:${convertToUnixTimestamp(anime.airingTime, formattedDate)}:F>`,
+            value: `Episode ${anime.airingEpisode?.toString() || 'N/A'} at <t:${convertToUnixTimestamp(anime.airingTime, formattedDate)}:t>`,
             inline: false
           }))
         );
