@@ -41,6 +41,6 @@ export async function execute(interaction: CommandInteraction) {
             .setDescription('There was an error retrieving your subscriptions. Please try again later.')
             .setColor('#ff0000');
 
-        await interaction.reply({ embeds: [errorEmbed] });
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 }
