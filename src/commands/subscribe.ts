@@ -13,11 +13,11 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: CommandInteraction) {
-  const animeName = interaction.options.get('anime_name')?.value as string; // Retrieve the value and cast to string
+  const animeName = interaction.options.get('anime_name')?.value as string;
   const userId = interaction.user.id;
   const Zoro = new ANIME.Zoro();
 
-  await interaction.reply(`Subscribing to ${animeName}...`);
+  await interaction.reply(`Trying to subscribe to ${animeName}...`);
 
   try {
     const doesExist = await Zoro.search(animeName);
@@ -66,7 +66,7 @@ export async function execute(interaction: CommandInteraction) {
       console.log(`Created new subscription with ${closestAnime.title}.`);
     }
 
-    await interaction.editReply(`Subscribed to ${closestAnime.title.toString()}!`);
+    await interaction.editReply(`I will notify you when a new episode of ${closestAnime.title.toString()} is going to releases.`);
   } catch (error) {
     console.error('Error subscribing to anime:', error);
     await interaction.editReply('An error occurred while trying to subscribe. Please try again later.');
