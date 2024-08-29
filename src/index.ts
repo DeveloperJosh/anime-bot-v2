@@ -24,14 +24,14 @@ const commands = new Collection<string, any>();
 // Load commands
 const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.ts'));
 for (const file of commandFiles) {
-  const command = require(`./commands/${file}`);
+  const command = await import(`./commands/${file}`);
   commands.set(command.data.name, command);
 }
 
 // Load events
 const eventFiles = fs.readdirSync(path.join(__dirname, 'events')).filter(file => file.endsWith('.ts'));
 for (const file of eventFiles) {
-  const event = require(path.join(__dirname, 'events', file)).default;
+  const event = (await import(path.join(__dirname, 'events', file))).default;
   event(client, commands, token);
 }
 

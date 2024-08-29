@@ -1,19 +1,27 @@
 import { ANIME } from '@consumet/extensions';
 import { Subscription } from '../models/Subscription';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { Config } from '../models/Config';
 
 const Zoro = new ANIME.Zoro();
-const channel_id = Bun.env.CHANNEL_ID;
 
-const convertToUnixTimestamp = (timeString, dateString) => {
+const convertToUnixTimestamp = (timeString: string, dateString: string): number => {
   const [hourString, minute] = timeString.split(':');
   const [year, month, day] = dateString.split('-');
-  const date = new Date(year, month - 1, day, parseInt(hourString), parseInt(minute));
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hourString), parseInt(minute));
   return Math.floor(date.getTime() / 1000); 
 };
 
 export const checkAiring = async (client: Client) => {
   try {
+    // Get channel IDs from all servers in the DB
+    const configs = await Config.find({}).select('channel_id');
+
+    if (!configs || configs.length === 0) {
+      console.log('No server configurations found.');
+      return;
+    }
+
     const subscriptions = await Subscription.find({});
     const date = new Date();
     const year = date.getFullYear();
@@ -31,14 +39,13 @@ export const checkAiring = async (client: Client) => {
     }
 
     if (subscriptions.length > 0) {
-      const userNotifications = {};
+      const userNotifications: { [key: string]: string[] } = {};
 
       for (const subscription of subscriptions) {
         for (const sub of subscription.subscriptions) {
           const anime = airingSchedule.results.find(anime => typeof anime.title === 'string' && anime.title.toLowerCase() === sub.animeName?.toLowerCase());
 
           if (anime) {
-
             const unixTimestamp = convertToUnixTimestamp(anime.airingTime, formattedDate);
             const formattedTime = `<t:${unixTimestamp}:t>`; 
             const message = `The anime [${sub.animeName}](${anime.url}) is on the schedule and airs at ${formattedTime}! 🎉`;
@@ -72,20 +79,29 @@ export const checkAiring = async (client: Client) => {
         }
       }
 
-      const channel = (await client.channels.fetch(channel_id)) as TextChannel;
-      const embed = new EmbedBuilder()
-        .setTitle('Airing Schedule Summary')
-        .setColor('#ff33fc')
-        .setDescription('Here are the anime airing today:')
-        .addFields(
-          airingSchedule.results.map(anime => ({
-            name: String(anime.title) || 'Unknown Title',
-            value: `Episode ${anime.airingEpisode?.toString() || 'N/A'} at <t:${convertToUnixTimestamp(anime.airingTime, formattedDate)}:t>`,
-            inline: false
-          }))
-        );
+      // Send the schedule summary to each channel
+      for (const config of configs) {
+        const channel = (await client.channels.fetch(config.channel_id)) as TextChannel;
 
-      await channel.send({ embeds: [embed] });
+        if (!channel) {
+          console.error(`Channel with ID ${config.channel_id} not found.`);
+          continue;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('Airing Schedule Summary')
+          .setColor('#ff33fc')
+          .setDescription('Here are the anime airing today:')
+          .addFields(
+            airingSchedule.results.map(anime => ({
+              name: typeof anime.title === 'string' ? anime.title : String(anime.title),
+              value: `${anime.airingEpisode?.toString() || 'N/A'} at <t:${convertToUnixTimestamp(anime.airingTime, formattedDate)}:t>`,
+              inline: false
+            }))
+          );
+
+        await channel.send({ embeds: [embed] });
+      }
 
     } else {
       console.log('No subscriptions found.');
